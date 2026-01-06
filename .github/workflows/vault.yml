@@ -1,0 +1,36 @@
+name: Vault Secrets Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vault:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Vault CLI
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+          sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+          sudo apt update
+          sudo apt install -y vault jq
+
+      - name: Login to Vault using AppRole
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: |
+          vault write auth/approle/login \
+            role_id="$VAULT_ROLE_ID" \
+            secret_id="$VAULT_SECRET_ID" \
+            -format=json > login.json
+
+          export VAULT_TOKEN=$(jq -r .auth.client_token login.json)
+          echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
+
+      - name: Read secret from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+        run: |
+          vault kv get secret/app/config
