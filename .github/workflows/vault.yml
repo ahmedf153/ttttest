@@ -8,6 +8,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug secrets
+        run: |
+          echo "VAULT_ADDR=[$VAULT_ADDR]"
+          echo "ROLE_ID length=${#VAULT_ROLE_ID}"
+          echo "SECRET_ID length=${#VAULT_SECRET_ID}"
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+
       - name: Login to Vault using AppRole (curl)
         env:
           VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
