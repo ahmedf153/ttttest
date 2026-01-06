@@ -1,4 +1,4 @@
-name: Vault Secrets Test
+name: Vault Secrets Test (curl)
 
 on:
   workflow_dispatch:
@@ -8,35 +8,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Vault CLI
-        run: |
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-          sudo apt-add-repository "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-          sudo apt update
-          sudo apt install -y vault jq
-
-      - name: Debug Vault Addr
-        run: |
-          echo "VAULT_ADDR=${{ secrets.VAULT_ADDR }}"
-
-      - name: Login to Vault using AppRole
+      - name: Login to Vault using AppRole (curl)
         env:
           VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
         run: |
-          vault write \
-            -address="$VAULT_ADDR" \
-            auth/approle/login \
-            role_id="$VAULT_ROLE_ID" \
-            secret_id="$VAULT_SECRET_ID" \
-            -format=json > login.json
+          RESPONSE=$(curl -s -X POST \
+            "$VAULT_ADDR/v1/auth/approle/login" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "role_id": "'"$VAULT_ROLE_ID"'",
+              "secret_id": "'"$VAULT_SECRET_ID"'"
+            }')
 
-          export VAULT_TOKEN=$(jq -r .auth.client_token login.json)
+          echo "$RESPONSE"
+
+          VAULT_TOKEN=$(echo "$RESPONSE" | jq -r '.auth.client_token')
           echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
 
-      - name: Read secret from Vault
+      - name: Read secret from Vault (curl)
         env:
           VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
         run: |
-          vault kv get -address="$VAULT_ADDR" secret/app/config
+          curl -s \
+            -H "X-Vault-Token: $VAULT_TOKEN" \
+            "$VAULT_ADDR/v1/secret/data/app/config" | jq
