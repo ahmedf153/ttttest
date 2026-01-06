@@ -7,9 +7,6 @@ jobs:
   vault:
     runs-on: ubuntu-latest
 
-    env:
-      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-
     steps:
       - name: Install Vault CLI
         run: |
@@ -18,12 +15,19 @@ jobs:
           sudo apt update
           sudo apt install -y vault jq
 
+      - name: Debug Vault Addr
+        run: |
+          echo "VAULT_ADDR=${{ secrets.VAULT_ADDR }}"
+
       - name: Login to Vault using AppRole
         env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
         run: |
-          vault write auth/approle/login \
+          vault write \
+            -address="$VAULT_ADDR" \
+            auth/approle/login \
             role_id="$VAULT_ROLE_ID" \
             secret_id="$VAULT_SECRET_ID" \
             -format=json > login.json
@@ -32,5 +36,7 @@ jobs:
           echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
 
       - name: Read secret from Vault
+        env:
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
         run: |
-          vault kv get secret/app/config
+          vault kv get -address="$VAULT_ADDR" secret/app/config
